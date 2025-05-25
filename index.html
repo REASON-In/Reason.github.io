@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Sizathu Mashinini,s Quick Chat</title>
+  <title>Real-Time Chat with Usernames</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -27,6 +27,9 @@
       border-radius: 4px;
       background-color: #e1f5fe;
       word-wrap: break-word;
+    }
+    #messages div strong {
+      color: #0277bd;
     }
     #input {
       width: 80%;
@@ -86,13 +89,23 @@
   const input = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
 
+  // Ask user for their name when the page loads
+  const username = prompt("Enter your name:") || "Anonymous";
+
   const messagesRef = ref(db, 'messages');
+
+  // Helper function to escape HTML special characters
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
 
   // Listen for new messages added in database
   onChildAdded(messagesRef, (snapshot) => {
     const msg = snapshot.val();
     const msgDiv = document.createElement('div');
-    msgDiv.textContent = msg.text;
+    msgDiv.innerHTML = `<strong>${escapeHtml(msg.username)}:</strong> ${escapeHtml(msg.text)}`;
     messagesDiv.appendChild(msgDiv);
     messagesDiv.scrollTop = messagesDiv.scrollHeight; // scroll to bottom
   });
@@ -101,7 +114,7 @@
   sendBtn.onclick = () => {
     const text = input.value.trim();
     if (text !== '') {
-      push(messagesRef, { text });
+      push(messagesRef, { text, username });
       input.value = '';
       input.focus();
     }
@@ -115,3 +128,4 @@
 
 </body>
 </html>
+
