@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GameZone</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --primary: #0ff;
+            --bg-dark: #0d0d0d;
+            --bg-gradient: radial-gradient(circle at top, #1a1a1a, #000);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-gradient);
+            color: #fff;
+            line-height: 1.6;
+        }
+
+        header {
+            text-align: center;
+            padding: 80px 20px;
+            background: #101010;
+        }
+
+        header h1 {
+            font-size: 3.5em;
+            color: var(--primary);
+            animation: glowText 2s ease-in-out infinite alternate;
+        }
+
+        header p {
+            font-size: 1.2em;
+            color: #ccc;
+            max-width: 600px;
+            margin: 20px auto 40px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 15px 30px;
+            background: var(--primary);
+            color: #000;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: 10px;
+            box-shadow: 0 0 20px var(--primary);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: pulse 2s infinite;
+        }
+
+        .button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px var(--primary);
+        }
+
+        section {
+            padding: 60px 20px;
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        .features {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            text-align: center;
+        }
+
+        .feature {
+            background: #111;
+            padding: 20px;
+            margin: 10px;
+            border-radius: 15px;
+            width: 280px;
+            transition: transform 0.3s ease;
+        }
+
+        .feature:hover {
+            transform: scale(1.05);
+        }
+
+        .feature i {
+            font-size: 2em;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .gallery img {
+            width: 100%;
+            border-radius: 10px;
+            transition: transform 0.3s ease;
+        }
+
+        .gallery img:hover {
+            transform: scale(1.05);
+        }
+
+        footer {
+            background: #080808;
+            color: #777;
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        footer p {
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        @keyframes glowText {
+            from {
+                text-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary);
+            }
+            to {
+                text-shadow: 0 0 20px var(--primary), 0 0 40px var(--primary);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 15px var(--primary);
+            }
+            50% {
+                box-shadow: 0 0 30px var(--primary);
+            }
+        }
+
+        @media (max-width: 600px) {
+            header h1 {
+                font-size: 2.5em;
+            }
+
+            .feature {
+                width: 100%;
+            }
+        }
+    </style>
+    <script src="https://kit.fontawesome.com/a2c1f5a270.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+    <header>
+        <h1>GameZone</h1>
+        <p>The ultimate hub for gamers to share, explore, and level up their gaming experience.</p>
+        <a class="button" href="#">Join the Action</a>
+    </header>
+
+    <section>
+        <h2 style="text-align:center; margin-bottom:30px;">🔥 Features</h2>
+        <div class="features">
+            <div class="feature">
+                <i class="fas fa-video"></i>
+                <h3>Gameplay Videos</h3>
+                <p>Watch, upload, and enjoy action-packed moments from fellow gamers.</p>
+            </div>
+            <div class="feature">
+                <i class="fas fa-users"></i>
+                <h3>Community</h3>
+                <p>Connect with players around the world. Chat, discuss, and team up.</p>
+            </div>
+            <div class="feature">
+                <i class="fas fa-gamepad"></i>
+                <h3>Game Reviews</h3>
+                <p>Discover top-rated games and share your own experiences.</p>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2 style="text-align:center; margin-bottom:30px;">🎮 Gallery</h2>
+        <div class="gallery">
+            <img src="https://via.placeholder.com/400x200/0ff/000?text=Gameplay+1" alt="Gameplay 1">
+            <img src="https://via.placeholder.com/400x200/0cf/000?text=Gameplay+2" alt="Gameplay 2">
+            <img src="https://via.placeholder.com/400x200/09f/000?text=Gameplay+3" alt="Gameplay 3">
+        </div>
+    </section>
+
+    <footer>
+        <p>Ready to dive in?</p>
+        <a class="button" href="#">Get Started</a>
+        <p style="margin-top:20px;">© 2025 GameZone. Built by gamers, for gamers.</p>
+    </footer>
+
+</body>
+</html>
