@@ -2,65 +2,114 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Real-Time Chat with Usernames</title>
+  <title>Dope Real-Time Chat</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      max-width: 600px;
-      margin: 40px auto;
-      padding: 0 20px;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #121212;
+      color: #e0e0e0;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
     }
+
+    .sidebar {
+      width: 200px;
+      background-color: #1f1f1f;
+      padding: 15px;
+      box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+    }
+
+    .sidebar h3 {
+      margin-top: 0;
+      color: #00e5ff;
+    }
+
+    .user {
+      margin: 5px 0;
+      color: #80d8ff;
+    }
+
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+
     h2 {
       text-align: center;
+      color: #00e5ff;
     }
+
     #messages {
-      border: 1px solid #ccc;
+      flex: 1;
+      border: 1px solid #333;
       padding: 10px;
-      height: 300px;
       overflow-y: auto;
-      margin-bottom: 15px;
-      background: #f9f9f9;
+      background: #212121;
+      margin-bottom: 10px;
     }
+
     #messages div {
-      margin-bottom: 8px;
-      padding: 5px 10px;
-      border-radius: 4px;
-      background-color: #e1f5fe;
-      word-wrap: break-word;
+      margin-bottom: 10px;
+      background-color: #333;
+      padding: 10px;
+      border-radius: 6px;
     }
-    #messages div strong {
-      color: #0277bd;
+
+    #messages strong {
+      color: #64ffda;
     }
+
     #input {
-      width: 80%;
+      width: 75%;
       padding: 10px;
       font-size: 1em;
-      border: 1px solid #ccc;
-      border-radius: 4px;
+      border: none;
+      border-radius: 6px;
+      background: #2c2c2c;
+      color: white;
     }
+
     #sendBtn {
       padding: 10px 15px;
       font-size: 1em;
       border: none;
-      background-color: #0288d1;
-      color: white;
+      background-color: #00e5ff;
+      color: #000;
       cursor: pointer;
-      border-radius: 4px;
+      border-radius: 6px;
       margin-left: 10px;
     }
+
     #sendBtn:hover {
-      background-color: #0277bd;
+      background-color: #00b8d4;
+    }
+
+    .input-row {
+      display: flex;
     }
   </style>
 </head>
 <body>
 
-<h2>Real-Time Chat</h2>
+<div class="sidebar">
+  <h3>Online</h3>
+  <div id="onlineUsers"></div>
+</div>
 
-<div id="messages"></div>
+<div class="chat-container">
+  <h2>🔥 Dope Chat</h2>
+  <div id="messages"></div>
 
-<input type="text" id="input" placeholder="Type your message..." autocomplete="off" />
-<button id="sendBtn">Send</button>
+  <div class="input-row">
+    <input type="text" id="input" placeholder="Type your message..." autocomplete="off" />
+    <button id="sendBtn">Send</button>
+  </div>
+</div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
@@ -68,7 +117,11 @@
     getDatabase,
     ref,
     push,
-    onChildAdded
+    onChildAdded,
+    set,
+    remove,
+    onValue,
+    onDisconnect
   } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
   const firebaseConfig = {
@@ -81,36 +134,53 @@
     appId: "1:480312736040:web:16156b60384ceb37c9f81d"
   };
 
-  // Initialize Firebase
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
+
+  const username = prompt("Enter your name:") || "Anonymous";
+
+  const messagesRef = ref(db, 'messages');
+  const usersRef = ref(db, 'onlineUsers');
+  const myUserRef = ref(db, 'onlineUsers/' + username);
 
   const messagesDiv = document.getElementById('messages');
   const input = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
+  const onlineUsersDiv = document.getElementById('onlineUsers');
 
-  // Ask user for their name when the page loads
-  const username = prompt("Enter your name:") || "Anonymous";
+  // Register user as online
+  set(myUserRef, true);
+  onDisconnect(myUserRef).remove();
 
-  const messagesRef = ref(db, 'messages');
+  // Show who’s online
+  onValue(usersRef, (snapshot) => {
+    const users = snapshot.val() || {};
+    onlineUsersDiv.innerHTML = '';
+    Object.keys(users).forEach(user => {
+      const userDiv = document.createElement('div');
+      userDiv.className = 'user';
+      userDiv.textContent = user;
+      onlineUsersDiv.appendChild(userDiv);
+    });
+  });
 
-  // Helper function to escape HTML special characters
+  // Escape unsafe text
   function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
 
-  // Listen for new messages added in database
+  // Listen for new messages
   onChildAdded(messagesRef, (snapshot) => {
     const msg = snapshot.val();
     const msgDiv = document.createElement('div');
     msgDiv.innerHTML = `<strong>${escapeHtml(msg.username)}:</strong> ${escapeHtml(msg.text)}`;
     messagesDiv.appendChild(msgDiv);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight; // scroll to bottom
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 
-  // Send message to database
+  // Send message
   sendBtn.onclick = () => {
     const text = input.value.trim();
     if (text !== '') {
@@ -120,7 +190,6 @@
     }
   };
 
-  // Send message on Enter key press
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') sendBtn.click();
   });
@@ -128,4 +197,3 @@
 
 </body>
 </html>
-
