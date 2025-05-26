@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>REASON'S DOPE REAL-TIME CHAT</title>
-  <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
+  <title>REASON,S DOPE REAL-TIME CHAT</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       margin: 0;
@@ -13,6 +13,13 @@
       color: #e0e0e0;
       display: flex;
       height: 100vh;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .main-content {
+      display: flex;
+      flex: 1;
       overflow: hidden;
     }
 
@@ -21,6 +28,7 @@
       background-color: #1f1f1f;
       padding: 15px;
       box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+      overflow-y: auto;
     }
 
     .sidebar h3 {
@@ -38,7 +46,6 @@
       display: flex;
       flex-direction: column;
       padding: 20px;
-      position: relative;
     }
 
     h2 {
@@ -66,8 +73,14 @@
       color: #64ffda;
     }
 
+    .input-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
     #input {
-      width: 50%;
+      flex: 1;
       padding: 10px;
       font-size: 1em;
       border: none;
@@ -76,14 +89,12 @@
       color: white;
     }
 
-    #sendBtn, #imageBtn, #voiceBtn, #emojiToggle {
+    #sendBtn, #imageBtn, #voiceBtn, #emojiBtn {
       padding: 10px 15px;
       font-size: 1em;
       border: none;
       cursor: pointer;
       border-radius: 6px;
-      margin-left: 10px;
-      user-select: none;
     }
 
     #sendBtn {
@@ -99,23 +110,11 @@
       background-color: #00e5ff;
       color: #000;
       font-weight: bold;
-      width: 40px;
-      text-align: center;
-      padding: 0;
-      line-height: 36px;
-    }
-
-    #imageBtn:hover {
-      background-color: #00b8d4;
     }
 
     #voiceBtn {
       background-color: #ff4081;
       color: #000;
-      width: 40px;
-      text-align: center;
-      padding: 0;
-      line-height: 36px;
     }
 
     #voiceBtn.recording {
@@ -123,22 +122,9 @@
       color: white;
     }
 
-    #emojiToggle {
+    #emojiBtn {
       background-color: #ffd54f;
-    }
-
-    .input-row {
-      display: flex;
-      align-items: center;
-    }
-
-    emoji-picker {
-      position: absolute;
-      bottom: 70px;
-      right: 20px;
-      display: none;
-      z-index: 10;
-      max-height: 300px;
+      color: #000;
     }
 
     img.chat-image {
@@ -152,27 +138,45 @@
       border-radius: 6px;
       outline: none;
     }
+
+    @media (max-width: 768px) {
+      .main-content {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        box-shadow: none;
+      }
+
+      .input-row {
+        flex-direction: column;
+      }
+    }
   </style>
 </head>
 <body>
 
-<div class="sidebar">
-  <h3>Online</h3>
-  <div id="onlineUsers"></div>
-</div>
+<div class="main-content">
+  <div class="sidebar">
+    <h3>Online</h3>
+    <div id="onlineUsers"></div>
+  </div>
 
-<div class="chat-container">
-  <h2>...TECH SHARE with Reason's Website...</h2>
-  <div id="messages"></div>
+  <div class="chat-container">
+    <h2>...TECH SHARE with Reasons Website...</h2>
+    <div id="messages"></div>
 
-  <div class="input-row">
-    <input type="text" id="input" placeholder="Type your message..." autocomplete="off" />
-    <button id="sendBtn">Send</button>
-    <button id="imageBtn" title="Send Image">+</button>
-    <button id="voiceBtn" title="Record Voice Note">🎙️</button>
-    <button id="emojiToggle" title="Toggle Emoji Picker">😊</button>
-    <input type="file" id="imageInput" accept="image/*" style="display:none" />
-    <emoji-picker id="emojiPicker"></emoji-picker>
+    <div class="input-row">
+      <input type="text" id="input" placeholder="Type your message..." autocomplete="off" />
+      <button id="emojiBtn">😊</button>
+      <button id="sendBtn">Send</button>
+      <button id="imageBtn">+</button>
+      <button id="voiceBtn">🎙️</button>
+      <input type="file" id="imageInput" accept="image/*" style="display:none" />
+    </div>
+    <div id="emojiPicker" style="display: none; max-height: 200px; overflow-y: scroll; background: #333; padding: 10px; border-radius: 6px;"></div>
   </div>
 </div>
 
@@ -202,21 +206,36 @@
   const db = getDatabase(app);
 
   const username = prompt("Enter your name:") || "Anonymous";
-
   const messagesRef = ref(db, 'messages');
   const usersRef = ref(db, 'onlineUsers');
-  const myUserRef = ref(db, 'onlineUsers/' + username);
+  const kickedRef = ref(db, 'kickedUsers/' + username);
+  const myUserRef = ref(usersRef, username);
 
   const messagesDiv = document.getElementById('messages');
   const input = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
   const imageBtn = document.getElementById('imageBtn');
-  const imageInput = document.getElementById('imageInput');
   const voiceBtn = document.getElementById('voiceBtn');
-  const emojiToggle = document.getElementById('emojiToggle');
+  const imageInput = document.getElementById('imageInput');
+  const emojiBtn = document.getElementById('emojiBtn');
   const emojiPicker = document.getElementById('emojiPicker');
   const onlineUsersDiv = document.getElementById('onlineUsers');
 
+  // Emoji Picker
+  const emojis = [...Array(128512, 129536)].map(code => String.fromCodePoint(code));
+  emojiPicker.innerHTML = emojis.map(e => `<span style="cursor:pointer;font-size:1.5em;padding:4px;">${e}</span>`).join('');
+  emojiPicker.querySelectorAll('span').forEach(span => {
+    span.addEventListener('click', () => {
+      input.value += span.textContent;
+      input.focus();
+    });
+  });
+
+  emojiBtn.onclick = () => {
+    emojiPicker.style.display = emojiPicker.style.display === "none" ? "block" : "none";
+  };
+
+  // Add user to online list
   set(myUserRef, true);
   onDisconnect(myUserRef).remove();
 
@@ -233,11 +252,7 @@
   });
 
   const userColors = {};
-  const colors = [
-    '#e91e63', '#03a9f4', '#4caf50', '#ff9800',
-    '#9c27b0', '#00bcd4', '#8bc34a', '#ffc107',
-    '#673ab7', '#2196f3', '#009688', '#ff5722',
-  ];
+  const colors = ['#e91e63','#03a9f4','#4caf50','#ff9800','#9c27b0','#00bcd4','#8bc34a','#ffc107','#673ab7','#2196f3','#009688','#ff5722'];
 
   function getColorForUser(user) {
     if (!userColors[user]) {
@@ -256,19 +271,13 @@
     const msg = snapshot.val();
     const msgDiv = document.createElement('div');
     const userColor = getColorForUser(msg.username);
-
     if (msg.imageUrl) {
-      msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br>
-        <a href="${msg.imageUrl}" target="_blank">
-          <img src="${msg.imageUrl}" class="chat-image" alt="User sent image" />
-        </a>`;
+      msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br><a href="${msg.imageUrl}" target="_blank"><img src="${msg.imageUrl}" class="chat-image" /></a>`;
     } else if (msg.audioBase64) {
-      msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br>
-        <audio class="chat-audio" controls src="data:audio/webm;base64,${msg.audioBase64}"></audio>`;
+      msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br><audio class="chat-audio" controls src="data:audio/webm;base64,${msg.audioBase64}"></audio>`;
     } else {
       msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong> ${escapeHtml(msg.text)}`;
     }
-
     messagesDiv.appendChild(msgDiv);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
@@ -287,14 +296,9 @@
   });
 
   imageBtn.onclick = () => imageInput.click();
-
   imageInput.onchange = () => {
     const file = imageInput.files[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file.');
-      return;
-    }
+    if (!file || !file.type.startsWith('image/')) return;
     const reader = new FileReader();
     reader.onloadend = () => {
       push(messagesRef, { imageUrl: reader.result, username });
@@ -312,10 +316,6 @@
       voiceBtn.textContent = "🎙️";
       voiceBtn.classList.remove("recording");
     } else {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert("Your browser does not support audio recording.");
-        return;
-      }
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
@@ -324,30 +324,53 @@
           const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
           audioChunks = [];
           const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
           reader.onloadend = () => {
             const base64Audio = reader.result.split(',')[1];
             push(messagesRef, { audioBase64: base64Audio, username });
             stream.getTracks().forEach(track => track.stop());
           };
-          reader.readAsDataURL(audioBlob);
         };
         mediaRecorder.start();
         voiceBtn.textContent = "■";
         voiceBtn.classList.add("recording");
       } catch (err) {
-        alert("Microphone access denied or error: " + err.message);
+        alert("Mic access denied: " + err.message);
       }
     }
   };
 
-  // Emoji picker
-  emojiToggle.onclick = () => {
-    emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
-  };
+  // Kick user detection
+  onValue(kickedRef, (snapshot) => {
+    if (snapshot.exists()) {
+      alert("You have been removed from the chat.");
+      window.location.href = "https://google.com";
+    }
+  });
 
-  emojiPicker.addEventListener('emoji-click', event => {
-    input.value += event.detail.unicode;
-    input.focus();
+  // Admin shortcut: Ctrl + D + 1 to kick a user
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key.toLowerCase() === 'd') {
+      const waitForKey = (ev) => {
+        if (ev.key === '1') {
+          ev.preventDefault();
+          const userToKick = prompt("Enter the username to kick:");
+          if (userToKick && userToKick.trim()) {
+            const trimmedUser = userToKick.trim();
+            const kickedUserRef = ref(db, 'kickedUsers/' + trimmedUser);
+            set(kickedUserRef, true).then(() => {
+              set(ref(db, 'onlineUsers/' + trimmedUser), null);
+              setTimeout(() => set(kickedUserRef, null), 5000);
+              alert(`${trimmedUser} has been kicked.`);
+            });
+          }
+          document.removeEventListener('keydown', waitForKey);
+        } else {
+          document.removeEventListener('keydown', waitForKey);
+        }
+      };
+      document.addEventListener('keydown', waitForKey, { once: true });
+    }
   });
 </script>
 
