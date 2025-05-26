@@ -21,6 +21,7 @@
       background-color: #1f1f1f;
       padding: 15px;
       box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+      overflow-y: auto;
     }
 
     .sidebar h3 {
@@ -31,6 +32,9 @@
     .user {
       margin: 5px 0;
       color: #80d8ff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     .chat-container {
@@ -163,6 +167,9 @@
       display: none;
       z-index: 20;
       border-radius: 6px;
+      max-height: 300px;
+      overflow-y: auto;
+      width: 160px;
     }
 
     #kickoutList button {
@@ -174,6 +181,8 @@
       margin: 5px 0;
       border-radius: 4px;
       cursor: pointer;
+      width: 100%;
+      text-align: center;
     }
   </style>
 </head>
@@ -243,20 +252,25 @@
     const onlineUsersDiv = document.getElementById('onlineUsers');
     const kickoutList = document.getElementById('kickoutList');
 
+    // Set user online and clean up on disconnect
     set(myUserRef, true);
     onDisconnect(myUserRef).remove();
 
+    // Update online users and kickout list
     onValue(usersRef, (snapshot) => {
       const users = snapshot.val() || {};
       onlineUsersDiv.innerHTML = '';
       kickoutList.innerHTML = '';
+
       Object.keys(users).forEach(user => {
+        // Show user in sidebar
         const userDiv = document.createElement('div');
         userDiv.className = 'user';
         userDiv.textContent = user;
         userDiv.style.color = getColorForUser(user);
         onlineUsersDiv.appendChild(userDiv);
 
+        // Add kick button for other users in kickout list
         if (user !== username) {
           const btn = document.createElement('button');
           btn.textContent = `Kick ${user}`;
@@ -271,6 +285,7 @@
       });
     });
 
+    // Redirect kicked users to kicked out page and close window
     onValue(kickedFlagRef, (snapshot) => {
       if (snapshot.exists()) {
         window.location.href = "kicked out.html";
@@ -365,15 +380,14 @@
             reader.onloadend = () => {
               const base64Audio = reader.result.split(',')[1];
               push(messagesRef, { audioBase64: base64Audio, username });
-              stream.getTracks().forEach(track => track.stop());
             };
             reader.readAsDataURL(audioBlob);
           };
           mediaRecorder.start();
-          voiceBtn.textContent = "■";
+          voiceBtn.textContent = "⏹️";
           voiceBtn.classList.add("recording");
         } catch (err) {
-          alert("Microphone access denied or error: " + err.message);
+          alert('Microphone access denied or unavailable.');
         }
       }
     };
@@ -382,13 +396,15 @@
       emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
     };
 
-    emojiPicker.addEventListener('emoji-click', event => {
-      input.value += event.detail.unicode;
+    emojiPicker.addEventListener('emoji-click', e => {
+      input.value += e.detail.unicode;
       input.focus();
     });
 
+    // Toggle kickout list visibility with Alt + Backspace
     document.addEventListener('keydown', (e) => {
-      if (e.shiftKey && e.key.toLowerCase() === 'i') {
+      if (e.altKey && e.key === 'Backspace') {
+        e.preventDefault();
         kickoutList.style.display = kickoutList.style.display === 'none' ? 'block' : 'none';
       }
     });
