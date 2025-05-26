@@ -58,6 +58,7 @@
       background-color: #333;
       padding: 10px;
       border-radius: 6px;
+      word-wrap: break-word;
     }
 
     #messages strong {
@@ -65,7 +66,7 @@
     }
 
     #input {
-      width: 75%;
+      width: 60%;
       padding: 10px;
       font-size: 1em;
       border: none;
@@ -89,8 +90,28 @@
       background-color: #00b8d4;
     }
 
+    #imageInput {
+      margin-left: 10px;
+    }
+
+    #imageBtn {
+      padding: 10px 15px;
+      font-size: 1em;
+      border: none;
+      background-color: #00e5ff;
+      color: #000;
+      cursor: pointer;
+      border-radius: 6px;
+      margin-left: 10px;
+    }
+
+    #imageBtn:hover {
+      background-color: #00b8d4;
+    }
+
     .input-row {
       display: flex;
+      align-items: center;
     }
   </style>
 </head>
@@ -108,6 +129,8 @@
   <div class="input-row">
     <input type="text" id="input" placeholder="Type your message..." autocomplete="off" />
     <button id="sendBtn">Send</button>
+    <input type="file" id="imageInput" accept="image/*" />
+    <button id="imageBtn">Send Image</button>
   </div>
 </div>
 
@@ -119,7 +142,6 @@
     push,
     onChildAdded,
     set,
-    remove,
     onValue,
     onDisconnect
   } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
@@ -129,7 +151,7 @@
     authDomain: "gaming-80300.firebaseapp.com",
     databaseURL: "https://gaming-80300-default-rtdb.firebaseio.com",
     projectId: "gaming-80300",
-    storageBucket: "gaming-80300.firebasestorage.app",
+    storageBucket: "gaming-80300.appspot.com",
     messagingSenderId: "480312736040",
     appId: "1:480312736040:web:16156b60384ceb37c9f81d"
   };
@@ -147,6 +169,8 @@
   const input = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
   const onlineUsersDiv = document.getElementById('onlineUsers');
+  const imageInput = document.getElementById('imageInput');
+  const imageBtn = document.getElementById('imageBtn');
 
   // Register user as online
   set(myUserRef, true);
@@ -164,23 +188,31 @@
     });
   });
 
-  // Escape unsafe text
+  // Escape unsafe text to avoid XSS
   function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
 
-  // Listen for new messages
+  // Listen for new messages and display them
   onChildAdded(messagesRef, (snapshot) => {
     const msg = snapshot.val();
     const msgDiv = document.createElement('div');
-    msgDiv.innerHTML = `<strong>${escapeHtml(msg.username)}:</strong> ${escapeHtml(msg.text)}`;
+
+    if (msg.imageUrl) {
+      // Display image messages
+      msgDiv.innerHTML = `<strong>${escapeHtml(msg.username)}:</strong><br><img src="${msg.imageUrl}" style="max-width: 300px; border-radius: 6px;">`;
+    } else {
+      // Display text messages
+      msgDiv.innerHTML = `<strong>${escapeHtml(msg.username)}:</strong> ${escapeHtml(msg.text)}`;
+    }
+
     messagesDiv.appendChild(msgDiv);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 
-  // Send message
+  // Send text message
   sendBtn.onclick = () => {
     const text = input.value.trim();
     if (text !== '') {
@@ -190,9 +222,51 @@
     }
   };
 
+  // Send message on Enter key press
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') sendBtn.click();
   });
+
+  // Upload image to Imgur and send image URL in chat
+  imageBtn.onclick = () => {
+    const file = imageInput.files[0];
+    if (!file) {
+      alert("Please select an image first.");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onloadend = async function () {
+      const base64 = reader.result.split(',')[1]; // Get base64 data only
+
+      try {
+        const response = await fetch('https://api.imgur.com/3/image', {
+          method: 'POST',
+          headers: {
+            Authorization: 'Client-ID 0d129fe0cbecb20',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ image: base64, type: 'base64' })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          const imageUrl = data.data.link;
+          // Push image URL as message
+          push(messagesRef, { imageUrl, username });
+          imageInput.value = ''; // Clear file input
+        } else {
+          alert("Image upload failed: " + (data.data.error || 'Unknown error'));
+        }
+      } catch (error) {
+        alert("Error uploading image: " + error.message);
+      }
+    };
+
+    reader.readAsDataURL(file);
+  };
 </script>
 
 </body>
