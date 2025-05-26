@@ -8,7 +8,6 @@
     * {
       box-sizing: border-box;
     }
-
     body {
       margin: 0;
       font-family: 'Segoe UI', sans-serif;
@@ -16,78 +15,23 @@
       color: #e0e0e0;
       height: 100vh;
       display: flex;
-    }
-
-    .sidebar {
-      width: 280px;
-      background-color: #1e1e1e;
-      padding: 20px;
-      border-right: 1px solid #333;
-      overflow-y: auto;
-      display: flex;
       flex-direction: column;
-      gap: 20px;
     }
-
-    .sidebar h3 {
-      margin-top: 0;
-      margin-bottom: 10px;
-      font-size: 1.3em;
-      color: #00e5ff;
-      border-bottom: 1px solid #00e5ff;
-      padding-bottom: 5px;
-    }
-
-    .user {
-      padding: 6px 10px;
-      border-radius: 4px;
-      margin: 6px 0;
-      cursor: default;
-      user-select: none;
-      font-size: 1.1em;
-    }
-
-    .user.kickable {
-      cursor: pointer;
-      background-color: #2a2a2a;
-      transition: background-color 0.3s;
-    }
-
-    .user.kickable:hover {
-      background-color: #ff4444;
-      color: white;
-    }
-
-    .kickout-info {
-      font-size: 0.9em;
-      color: #ff7777;
-      margin-top: 10px;
-    }
-
-    .chat-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 30px;
-      overflow: hidden;
-    }
-
     .chat-header {
       text-align: center;
       font-size: 1.8em;
-      margin-bottom: 20px;
+      padding: 20px 0;
       color: #00e5ff;
+      user-select: none;
     }
-
     #messages {
       flex: 1;
       overflow-y: auto;
       padding: 20px;
       border-radius: 10px;
       background-color: #1c1c1c;
-      margin-bottom: 20px;
+      margin: 0 30px 20px 30px;
     }
-
     #messages div {
       margin-bottom: 20px;
       padding: 15px;
@@ -95,21 +39,19 @@
       background-color: #2a2a2a;
       word-wrap: break-word;
     }
-
     #messages strong {
       display: block;
       margin-bottom: 5px;
       font-size: 1.1em;
       color: #64ffda;
     }
-
     .input-row {
       display: flex;
       gap: 10px;
       align-items: center;
+      padding: 0 30px 30px 30px;
       flex-wrap: wrap;
     }
-
     #input {
       flex: 1;
       padding: 15px;
@@ -119,47 +61,36 @@
       background-color: #2c2c2c;
       color: white;
     }
-
-    #sendBtn,
-    #imageBtn,
-    #voiceBtn,
-    #emojiToggle {
+    #sendBtn, #imageBtn, #voiceBtn, #emojiToggle {
       padding: 15px 20px;
       font-size: 1.1em;
       border: none;
       border-radius: 8px;
       cursor: pointer;
     }
-
     #sendBtn {
       background-color: #00e5ff;
       color: black;
     }
-
     #sendBtn:hover {
       background-color: #00bcd4;
     }
-
     #imageBtn {
       background-color: #00e5ff;
       color: black;
     }
-
     #voiceBtn {
       background-color: #ff4081;
       color: black;
     }
-
     #voiceBtn.recording {
       background-color: #d32f2f;
       color: white;
     }
-
     #emojiToggle {
       background-color: #ffd54f;
       color: black;
     }
-
     emoji-picker {
       position: absolute;
       bottom: 100px;
@@ -169,13 +100,11 @@
       max-height: 300px;
       width: 300px;
     }
-
     img.chat-image {
       max-width: 100%;
       border-radius: 10px;
       margin-top: 10px;
     }
-
     audio.chat-audio {
       width: 100%;
       margin-top: 10px;
@@ -184,16 +113,6 @@
 </head>
 <body>
 
-<div class="sidebar">
-  <h3>Online Users</h3>
-  <div id="onlineUsers"></div>
-
-  <h3>Kick Out User</h3>
-  <div id="kickoutList"></div>
-  <div class="kickout-info">Click a username to kick them out.</div>
-</div>
-
-<div class="chat-container">
   <div class="chat-header">...TECH SHARE with Reason's Website...</div>
 
   <div id="messages"></div>
@@ -207,7 +126,6 @@
     <input type="file" id="imageInput" accept="image/*" style="display:none" />
     <emoji-picker id="emojiPicker"></emoji-picker>
   </div>
-</div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
@@ -235,70 +153,24 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  // Get username with a prompt
   let username = prompt("Enter your name:") || "Anonymous";
 
-  // Firebase refs
   const messagesRef = ref(db, 'messages');
   const usersRef = ref(db, 'onlineUsers');
   const myUserRef = ref(db, 'onlineUsers/' + username);
 
-  // Add self to online users
+  // Add self to online users & remove on disconnect
   set(myUserRef, true);
   onDisconnect(myUserRef).remove();
 
-  // Track online users list in two places:
-  const onlineUsersDiv = document.getElementById('onlineUsers');
-  const kickoutListDiv = document.getElementById('kickoutList');
-
-  // Track kicked out status for this client
+  let otherUsers = [];
   let kickedOut = false;
 
-  // Update online users display + kickout list
   onValue(usersRef, (snapshot) => {
     const users = snapshot.val() || {};
-
-    // Clear previous lists
-    onlineUsersDiv.innerHTML = '';
-    kickoutListDiv.innerHTML = '';
-
-    // Show all online users in sidebar
-    Object.keys(users).forEach(user => {
-      // Online users list (all)
-      const userDiv = document.createElement('div');
-      userDiv.className = 'user';
-      userDiv.textContent = user;
-      userDiv.style.color = getColorForUser(user);
-      onlineUsersDiv.appendChild(userDiv);
-    });
-
-    // Show kickable users (everyone except current user)
-    Object.keys(users).forEach(user => {
-      if(user !== username) {
-        const kickUserDiv = document.createElement('div');
-        kickUserDiv.className = 'user kickable';
-        kickUserDiv.textContent = user;
-        kickUserDiv.style.color = getColorForUser(user);
-
-        // Clicking kicks user out
-        kickUserDiv.onclick = () => {
-          if(confirm(`Kick out user "${user}"?`)) {
-            const kickedUserRef = ref(db, 'onlineUsers/' + user);
-            // Remove user from onlineUsers to kick out
-            remove(kickedUserRef).then(() => {
-              // Also send a special "kickout" message for that user to detect
-              push(messagesRef, { username: 'SYSTEM', text: `KICKOUT:${user}` });
-              alert(`User "${user}" has been kicked out.`);
-            });
-          }
-        };
-
-        kickoutListDiv.appendChild(kickUserDiv);
-      }
-    });
+    otherUsers = Object.keys(users).filter(user => user !== username);
   });
 
-  // Color assignment logic (consistent colors per user)
   const userColors = {};
   const colors = [
     '#e91e63', '#03a9f4', '#4caf50', '#ff9800',
@@ -313,29 +185,25 @@
     return userColors[user];
   }
 
-  // Sanitize to prevent HTML injection
   function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
 
-  // Listen for new chat messages
   onChildAdded(messagesRef, (snapshot) => {
     const msg = snapshot.val();
 
-    // SYSTEM messages: check for kickout instruction
     if(msg.username === 'SYSTEM' && msg.text.startsWith('KICKOUT:')) {
       const kickedUsername = msg.text.split(':')[1];
       if(kickedUsername === username) {
-        // This client is kicked out!
         kickedOut = true;
         cleanupAfterKickout();
       }
-      return; // Don't show this system message in chat
+      return;
     }
 
-    if(kickedOut) return; // If kicked out, block all messages
+    if(kickedOut) return;
 
     const messagesDiv = document.getElementById('messages');
     const msgDiv = document.createElement('div');
@@ -360,35 +228,30 @@
   // Send text message
   document.getElementById('sendBtn').onclick = () => {
     if(kickedOut) return alert("You are kicked out and cannot send messages.");
-
     const input = document.getElementById('input');
     const text = input.value.trim();
-    if (text !== '') {
+    if(text !== '') {
       push(messagesRef, { text, username });
       input.value = '';
       input.focus();
     }
   };
 
-  // Enter sends message
   document.getElementById('input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
+    if(e.key === 'Enter') {
       document.getElementById('sendBtn').click();
     }
   });
 
-  // Send image button
   document.getElementById('imageBtn').onclick = () => {
     if(kickedOut) return alert("You are kicked out and cannot send images.");
     document.getElementById('imageInput').click();
   };
 
-  // Image selected
   document.getElementById('imageInput').onchange = () => {
     if(kickedOut) return alert("You are kicked out and cannot send images.");
-
     const file = document.getElementById('imageInput').files[0];
-    if (!file || !file.type.startsWith('image/')) {
+    if(!file || !file.type.startsWith('image/')) {
       alert('Please select a valid image.');
       return;
     }
@@ -400,15 +263,13 @@
     reader.readAsDataURL(file);
   };
 
-  // Voice recording
   let mediaRecorder;
   let audioChunks = [];
 
   document.getElementById('voiceBtn').onclick = async () => {
     if(kickedOut) return alert("You are kicked out and cannot send voice messages.");
-
     const voiceBtn = document.getElementById('voiceBtn');
-    if (mediaRecorder && mediaRecorder.state === "recording") {
+    if(mediaRecorder && mediaRecorder.state === "recording") {
       mediaRecorder.stop();
       voiceBtn.textContent = "🎙️";
       voiceBtn.classList.remove("recording");
@@ -424,7 +285,6 @@
           reader.onloadend = () => {
             const base64Audio = reader.result.split(',')[1];
             push(messagesRef, { audioBase64: base64Audio, username });
-            stream.getTracks().forEach(track => track.stop());
           };
           reader.readAsDataURL(audioBlob);
         };
@@ -432,44 +292,80 @@
         voiceBtn.textContent = "■";
         voiceBtn.classList.add("recording");
       } catch (err) {
-        alert("Microphone access denied or error: " + err.message);
+        alert('Could not start recording: ' + err.message);
       }
     }
   };
 
-  // Emoji picker toggle
-  document.getElementById('emojiToggle').onclick = () => {
-    const emojiPicker = document.getElementById('emojiPicker');
-    emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
-  };
+  // Kickout prompt on Shift + I
+  window.addEventListener('keydown', async (e) => {
+    if(e.shiftKey && (e.key === 'I' || e.key === 'i')) {
+      e.preventDefault();
+      if(kickedOut) {
+        alert("You are kicked out and cannot kick others.");
+        return;
+      }
+      if(otherUsers.length === 0) {
+        alert("No other users online to kick.");
+        return;
+      }
 
-  document.getElementById('emojiPicker').addEventListener('emoji-click', event => {
-    if(kickedOut) return; // block input if kicked out
-    const input = document.getElementById('input');
-    input.value += event.detail.unicode;
-    input.focus();
+      // Prompt with a list of users to kick
+      let userToKick = prompt(
+        "Online users:\n" +
+        otherUsers.map((u, i) => `${i+1}. ${u}`).join('\n') +
+        "\n\nEnter the number of the user to kick:"
+      );
+
+      if(userToKick === null) return; // Cancelled
+
+      userToKick = userToKick.trim();
+      const index = parseInt(userToKick, 10);
+      if(isNaN(index) || index < 1 || index > otherUsers.length) {
+        alert("Invalid selection.");
+        return;
+      }
+
+      const kickedUser = otherUsers[index - 1];
+      const confirmKick = confirm(`Are you sure you want to kick out "${kickedUser}"?`);
+      if(!confirmKick) return;
+
+      // Send kickout system message
+      push(messagesRef, { username: 'SYSTEM', text: 'KICKOUT:' + kickedUser });
+      alert(`User "${kickedUser}" has been kicked out.`);
+    }
   });
 
-  // Kickout cleanup for the kicked user
   function cleanupAfterKickout() {
     alert("You have been kicked out!");
-    // Remove user from onlineUsers for safety
-    remove(myUserRef).catch(() => {});
-    // Disable chat UI
-    document.getElementById('input').disabled = true;
-    document.getElementById('sendBtn').disabled = true;
-    document.getElementById('imageBtn').disabled = true;
-    document.getElementById('voiceBtn').disabled = true;
-    document.getElementById('emojiToggle').disabled = true;
-    document.getElementById('emojiPicker').style.display = 'none';
-
-    // Redirect to kicked_out page after short delay
-    setTimeout(() => {
-      window.location.href = 'kicked out.html';
-    }, 1500);
+    // Remove self from online users
+    remove(myUserRef).then(() => {
+      // Redirect to kickedout page
+      window.location.href = "kickedout.html";
+      // Close the window/tab if possible
+      setTimeout(() => window.close(), 1000);
+    });
   }
+
+  // Emoji picker toggle & insert
+  const emojiToggle = document.getElementById('emojiToggle');
+  const emojiPicker = document.getElementById('emojiPicker');
+  const inputField = document.getElementById('input');
+
+  emojiToggle.addEventListener('click', () => {
+    if(emojiPicker.style.display === 'block') {
+      emojiPicker.style.display = 'none';
+    } else {
+      emojiPicker.style.display = 'block';
+    }
+  });
+
+  emojiPicker.addEventListener('emoji-click', event => {
+    inputField.value += event.detail.unicode;
+    inputField.focus();
+  });
+
 </script>
 
 </body>
 </html>
-
