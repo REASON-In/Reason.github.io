@@ -19,25 +19,49 @@
     }
 
     .sidebar {
-      width: 250px;
+      width: 280px;
       background-color: #1e1e1e;
       padding: 20px;
       border-right: 1px solid #333;
       overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
     }
 
     .sidebar h3 {
       margin-top: 0;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
       font-size: 1.3em;
       color: #00e5ff;
+      border-bottom: 1px solid #00e5ff;
+      padding-bottom: 5px;
     }
 
     .user {
-      margin: 10px 0;
-      font-size: 1.1em;
-      padding: 5px;
+      padding: 6px 10px;
       border-radius: 4px;
+      margin: 6px 0;
+      cursor: default;
+      user-select: none;
+      font-size: 1.1em;
+    }
+
+    .user.kickable {
+      cursor: pointer;
+      background-color: #2a2a2a;
+      transition: background-color 0.3s;
+    }
+
+    .user.kickable:hover {
+      background-color: #ff4444;
+      color: white;
+    }
+
+    .kickout-info {
+      font-size: 0.9em;
+      color: #ff7777;
+      margin-top: 10px;
     }
 
     .chat-container {
@@ -163,6 +187,10 @@
 <div class="sidebar">
   <h3>Online Users</h3>
   <div id="onlineUsers"></div>
+
+  <h3>Kick Out User</h3>
+  <div id="kickoutList"></div>
+  <div class="kickout-info">Click a username to kick them out.</div>
 </div>
 
 <div class="chat-container">
@@ -190,7 +218,8 @@
     onChildAdded,
     set,
     onValue,
-    onDisconnect
+    onDisconnect,
+    remove
   } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
   const firebaseConfig = {
@@ -206,37 +235,70 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  const username = prompt("Enter your name:") || "Anonymous";
+  // Get username with a prompt
+  let username = prompt("Enter your name:") || "Anonymous";
 
+  // Firebase refs
   const messagesRef = ref(db, 'messages');
   const usersRef = ref(db, 'onlineUsers');
   const myUserRef = ref(db, 'onlineUsers/' + username);
 
-  const messagesDiv = document.getElementById('messages');
-  const input = document.getElementById('input');
-  const sendBtn = document.getElementById('sendBtn');
-  const imageBtn = document.getElementById('imageBtn');
-  const imageInput = document.getElementById('imageInput');
-  const voiceBtn = document.getElementById('voiceBtn');
-  const emojiToggle = document.getElementById('emojiToggle');
-  const emojiPicker = document.getElementById('emojiPicker');
-  const onlineUsersDiv = document.getElementById('onlineUsers');
-
+  // Add self to online users
   set(myUserRef, true);
   onDisconnect(myUserRef).remove();
 
+  // Track online users list in two places:
+  const onlineUsersDiv = document.getElementById('onlineUsers');
+  const kickoutListDiv = document.getElementById('kickoutList');
+
+  // Track kicked out status for this client
+  let kickedOut = false;
+
+  // Update online users display + kickout list
   onValue(usersRef, (snapshot) => {
     const users = snapshot.val() || {};
+
+    // Clear previous lists
     onlineUsersDiv.innerHTML = '';
+    kickoutListDiv.innerHTML = '';
+
+    // Show all online users in sidebar
     Object.keys(users).forEach(user => {
+      // Online users list (all)
       const userDiv = document.createElement('div');
       userDiv.className = 'user';
       userDiv.textContent = user;
       userDiv.style.color = getColorForUser(user);
       onlineUsersDiv.appendChild(userDiv);
     });
+
+    // Show kickable users (everyone except current user)
+    Object.keys(users).forEach(user => {
+      if(user !== username) {
+        const kickUserDiv = document.createElement('div');
+        kickUserDiv.className = 'user kickable';
+        kickUserDiv.textContent = user;
+        kickUserDiv.style.color = getColorForUser(user);
+
+        // Clicking kicks user out
+        kickUserDiv.onclick = () => {
+          if(confirm(`Kick out user "${user}"?`)) {
+            const kickedUserRef = ref(db, 'onlineUsers/' + user);
+            // Remove user from onlineUsers to kick out
+            remove(kickedUserRef).then(() => {
+              // Also send a special "kickout" message for that user to detect
+              push(messagesRef, { username: 'SYSTEM', text: `KICKOUT:${user}` });
+              alert(`User "${user}" has been kicked out.`);
+            });
+          }
+        };
+
+        kickoutListDiv.appendChild(kickUserDiv);
+      }
+    });
   });
 
+  // Color assignment logic (consistent colors per user)
   const userColors = {};
   const colors = [
     '#e91e63', '#03a9f4', '#4caf50', '#ff9800',
@@ -251,20 +313,37 @@
     return userColors[user];
   }
 
+  // Sanitize to prevent HTML injection
   function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
 
+  // Listen for new chat messages
   onChildAdded(messagesRef, (snapshot) => {
     const msg = snapshot.val();
+
+    // SYSTEM messages: check for kickout instruction
+    if(msg.username === 'SYSTEM' && msg.text.startsWith('KICKOUT:')) {
+      const kickedUsername = msg.text.split(':')[1];
+      if(kickedUsername === username) {
+        // This client is kicked out!
+        kickedOut = true;
+        cleanupAfterKickout();
+      }
+      return; // Don't show this system message in chat
+    }
+
+    if(kickedOut) return; // If kicked out, block all messages
+
+    const messagesDiv = document.getElementById('messages');
     const msgDiv = document.createElement('div');
     const userColor = getColorForUser(msg.username);
 
     if (msg.imageUrl) {
       msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br>
-        <a href="${msg.imageUrl}" target="_blank">
+        <a href="${msg.imageUrl}" target="_blank" rel="noopener noreferrer">
           <img src="${msg.imageUrl}" class="chat-image" />
         </a>`;
     } else if (msg.audioBase64) {
@@ -278,7 +357,11 @@
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 
-  sendBtn.onclick = () => {
+  // Send text message
+  document.getElementById('sendBtn').onclick = () => {
+    if(kickedOut) return alert("You are kicked out and cannot send messages.");
+
+    const input = document.getElementById('input');
     const text = input.value.trim();
     if (text !== '') {
       push(messagesRef, { text, username });
@@ -287,14 +370,24 @@
     }
   };
 
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') sendBtn.click();
+  // Enter sends message
+  document.getElementById('input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      document.getElementById('sendBtn').click();
+    }
   });
 
-  imageBtn.onclick = () => imageInput.click();
+  // Send image button
+  document.getElementById('imageBtn').onclick = () => {
+    if(kickedOut) return alert("You are kicked out and cannot send images.");
+    document.getElementById('imageInput').click();
+  };
 
-  imageInput.onchange = () => {
-    const file = imageInput.files[0];
+  // Image selected
+  document.getElementById('imageInput').onchange = () => {
+    if(kickedOut) return alert("You are kicked out and cannot send images.");
+
+    const file = document.getElementById('imageInput').files[0];
     if (!file || !file.type.startsWith('image/')) {
       alert('Please select a valid image.');
       return;
@@ -302,15 +395,19 @@
     const reader = new FileReader();
     reader.onloadend = () => {
       push(messagesRef, { imageUrl: reader.result, username });
-      imageInput.value = '';
+      document.getElementById('imageInput').value = '';
     };
     reader.readAsDataURL(file);
   };
 
+  // Voice recording
   let mediaRecorder;
   let audioChunks = [];
 
-  voiceBtn.onclick = async () => {
+  document.getElementById('voiceBtn').onclick = async () => {
+    if(kickedOut) return alert("You are kicked out and cannot send voice messages.");
+
+    const voiceBtn = document.getElementById('voiceBtn');
     if (mediaRecorder && mediaRecorder.state === "recording") {
       mediaRecorder.stop();
       voiceBtn.textContent = "🎙️";
@@ -340,15 +437,39 @@
     }
   };
 
-  emojiToggle.onclick = () => {
+  // Emoji picker toggle
+  document.getElementById('emojiToggle').onclick = () => {
+    const emojiPicker = document.getElementById('emojiPicker');
     emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
   };
 
-  emojiPicker.addEventListener('emoji-click', event => {
+  document.getElementById('emojiPicker').addEventListener('emoji-click', event => {
+    if(kickedOut) return; // block input if kicked out
+    const input = document.getElementById('input');
     input.value += event.detail.unicode;
     input.focus();
   });
+
+  // Kickout cleanup for the kicked user
+  function cleanupAfterKickout() {
+    alert("You have been kicked out!");
+    // Remove user from onlineUsers for safety
+    remove(myUserRef).catch(() => {});
+    // Disable chat UI
+    document.getElementById('input').disabled = true;
+    document.getElementById('sendBtn').disabled = true;
+    document.getElementById('imageBtn').disabled = true;
+    document.getElementById('voiceBtn').disabled = true;
+    document.getElementById('emojiToggle').disabled = true;
+    document.getElementById('emojiPicker').style.display = 'none';
+
+    // Redirect to kicked_out page after short delay
+    setTimeout(() => {
+      window.location.href = 'kicked out.html';
+    }, 1500);
+  }
 </script>
 
 </body>
 </html>
+
