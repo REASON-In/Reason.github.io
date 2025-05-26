@@ -201,8 +201,11 @@
     const msgDiv = document.createElement('div');
 
     if (msg.imageUrl) {
-      // Display image messages
-      msgDiv.innerHTML = `<strong>${escapeHtml(msg.username)}:</strong><br><img src="${msg.imageUrl}" style="max-width: 300px; border-radius: 6px;">`;
+      // Display clickable image messages
+      msgDiv.innerHTML = `<strong>${escapeHtml(msg.username)}:</strong><br>
+        <a href="${msg.imageUrl}" target="_blank" rel="noopener noreferrer">
+          <img src="${msg.imageUrl}" style="max-width: 300px; border-radius: 6px; cursor: pointer;">
+        </a>`;
     } else {
       // Display text messages
       msgDiv.innerHTML = `<strong>${escapeHtml(msg.username)}:</strong> ${escapeHtml(msg.text)}`;
