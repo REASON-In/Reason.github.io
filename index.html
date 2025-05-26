@@ -65,13 +65,14 @@
     }
 
     #input {
-      width: 60%;
+      flex: 1;
       padding: 10px;
       font-size: 1em;
       border: none;
       border-radius: 6px;
       background: #2c2c2c;
       color: white;
+      margin-left: 10px;
     }
 
     #sendBtn, #imageBtn, #voiceBtn {
@@ -126,6 +127,29 @@
       align-items: center;
     }
 
+    #emojiPicker {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      max-width: 180px;
+    }
+
+    #emojiPicker button {
+      font-size: 1.4em;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: #e0e0e0;
+      user-select: none;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: background-color 0.2s ease;
+    }
+
+    #emojiPicker button:hover {
+      background-color: #333;
+    }
+
     img.chat-image {
       max-width: 300px;
       border-radius: 6px;
@@ -151,9 +175,10 @@
   <div id="messages"></div>
 
   <div class="input-row">
+    <div id="emojiPicker"></div>
     <input type="text" id="input" placeholder="Type your message..." autocomplete="off" />
-    <button id="sendBtn">💬 Send</button>
-    <button id="imageBtn" title="Send Image">📷</button>
+    <button id="sendBtn">Send</button>
+    <button id="imageBtn" title="Send Image">+</button>
     <button id="voiceBtn" title="Record Voice Note">🎙️</button>
     <input type="file" id="imageInput" accept="image/*" style="display:none" />
   </div>
@@ -198,6 +223,7 @@
   const imageInput = document.getElementById('imageInput');
   const voiceBtn = document.getElementById('voiceBtn');
   const onlineUsersDiv = document.getElementById('onlineUsers');
+  const emojiPicker = document.getElementById('emojiPicker');
 
   // Register user online & remove on disconnect
   set(myUserRef, true);
@@ -288,7 +314,6 @@
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      const base64Image = reader.result.split(',')[1];
       // Send base64 image (note: not efficient for big images, but demo purpose)
       push(messagesRef, { imageUrl: reader.result, username });
       imageInput.value = '';
@@ -341,6 +366,30 @@
       }
     }
   };
+
+  // Emoji picker setup
+  const emojis = ['😀', '😂', '😍', '👍', '🙏', '🔥', '💬', '🎉', '😎', '🤔'];
+
+  emojis.forEach(e => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = e;
+    btn.title = `Insert ${e}`;
+    btn.addEventListener('click', () => {
+      insertAtCursor(input, e);
+      input.focus();
+    });
+    emojiPicker.appendChild(btn);
+  });
+
+  function insertAtCursor(input, textToInsert) {
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const text = input.value;
+    input.value = text.slice(0, start) + textToInsert + text.slice(end);
+    input.selectionStart = input.selectionEnd = start + textToInsert.length;
+  }
 </script>
+
 </body>
 </html>
