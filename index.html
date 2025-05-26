@@ -349,6 +349,28 @@
     input.value += event.detail.unicode;
     input.focus();
   });
+
+  // Ctrl + D + 1 to kick a user
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key.toLowerCase() === 'd') {
+      document.addEventListener('keydown', handleSecondKey, { once: true });
+    }
+  });
+
+  function handleSecondKey(e) {
+    if (e.key === '1') {
+      const userToKick = prompt("Enter the name of the user to kick out:");
+      if (!userToKick || userToKick === username) {
+        alert("Invalid username or you cannot kick yourself.");
+        return;
+      }
+
+      const userRef = ref(db, 'onlineUsers/' + userToKick);
+      set(userRef, null)
+        .then(() => alert(`${userToKick} has been kicked out.`))
+        .catch(err => alert(`Error kicking user: ${err.message}`));
+    }
+  }
 </script>
 
 </body>
