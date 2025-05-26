@@ -29,7 +29,8 @@
 
     .user {
       margin: 5px 0;
-      color: #80d8ff;
+      font-weight: bold;
+      /* color set dynamically in JS */
     }
 
     .chat-container {
@@ -62,11 +63,12 @@
     }
 
     #messages strong {
-      color: #64ffda;
+      /* color set dynamically in JS */
+      cursor: default;
     }
 
     #input {
-      width: 60%;
+      flex: 1;
       padding: 10px;
       font-size: 1em;
       border: none;
@@ -91,18 +93,27 @@
     }
 
     #imageInput {
-      margin-left: 10px;
+      display: none;
     }
 
     #imageBtn {
       padding: 10px 15px;
-      font-size: 1em;
+      font-size: 1.5em;
+      font-weight: bold;
+      line-height: 1;
       border: none;
       background-color: #00e5ff;
       color: #000;
       cursor: pointer;
-      border-radius: 6px;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
       margin-left: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      user-select: none;
+      transition: background-color 0.3s ease;
     }
 
     #imageBtn:hover {
@@ -130,7 +141,7 @@
     <input type="text" id="input" placeholder="Type your message..." autocomplete="off" />
     <button id="sendBtn">Send</button>
     <input type="file" id="imageInput" accept="image/*" />
-    <button id="imageBtn">Send Image</button>
+    <button id="imageBtn" title="Send Image">+</button>
   </div>
 </div>
 
@@ -176,7 +187,7 @@
   set(myUserRef, true);
   onDisconnect(myUserRef).remove();
 
-  // Show who’s online
+  // Show who’s online with colored usernames
   onValue(usersRef, (snapshot) => {
     const users = snapshot.val() || {};
     onlineUsersDiv.innerHTML = '';
@@ -184,9 +195,25 @@
       const userDiv = document.createElement('div');
       userDiv.className = 'user';
       userDiv.textContent = user;
+      userDiv.style.color = getColorForUser(user);
       onlineUsersDiv.appendChild(userDiv);
     });
   });
+
+  // Utility: consistent color for a username (returns hex color string)
+  function getColorForUser(name) {
+    const colors = [
+      '#e91e63', '#03a9f4', '#4caf50', '#ff9800', '#9c27b0', '#00bcd4',
+      '#8bc34a', '#ffc107', '#673ab7', '#2196f3', '#009688', '#ff5722'
+    ];
+    // Simple hash function
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  }
 
   // Escape unsafe text to avoid XSS
   function escapeHtml(text) {
@@ -195,20 +222,22 @@
     return div.innerHTML;
   }
 
-  // Listen for new messages and display them
+  // Listen for new messages and display them with colored usernames
   onChildAdded(messagesRef, (snapshot) => {
     const msg = snapshot.val();
     const msgDiv = document.createElement('div');
 
+    const userColor = getColorForUser(msg.username);
+
     if (msg.imageUrl) {
       // Display clickable image messages
-      msgDiv.innerHTML = `<strong>${escapeHtml(msg.username)}:</strong><br>
+      msgDiv.innerHTML = `<strong style="color:${userColor}; cursor: default;">${escapeHtml(msg.username)}:</strong><br>
         <a href="${msg.imageUrl}" target="_blank" rel="noopener noreferrer">
           <img src="${msg.imageUrl}" style="max-width: 300px; border-radius: 6px; cursor: pointer;">
         </a>`;
     } else {
       // Display text messages
-      msgDiv.innerHTML = `<strong>${escapeHtml(msg.username)}:</strong> ${escapeHtml(msg.text)}`;
+      msgDiv.innerHTML = `<strong style="color:${userColor}; cursor: default;">${escapeHtml(msg.username)}:</strong> ${escapeHtml(msg.text)}`;
     }
 
     messagesDiv.appendChild(msgDiv);
@@ -230,18 +259,22 @@
     if (e.key === 'Enter') sendBtn.click();
   });
 
-  // Upload image to Imgur and send image URL in chat
+  // Clicking '+' triggers hidden file input click
   imageBtn.onclick = () => {
+    imageInput.click();
+  };
+
+  // When an image is selected, upload it to Imgur and send the link
+  imageInput.addEventListener('change', () => {
     const file = imageInput.files[0];
     if (!file) {
-      alert("Please select an image first.");
       return;
     }
 
     const reader = new FileReader();
 
     reader.onloadend = async function () {
-      const base64 = reader.result.split(',')[1]; // Get base64 data only
+      const base64 = reader.result.split(',')[1]; // base64 data only
 
       try {
         const response = await fetch('https://api.imgur.com/3/image', {
@@ -269,7 +302,7 @@
     };
 
     reader.readAsDataURL(file);
-  };
+  });
 </script>
 
 </body>
