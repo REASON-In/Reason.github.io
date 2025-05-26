@@ -31,7 +31,6 @@
     .user {
       margin: 5px 0;
       color: #80d8ff;
-      cursor: default;
     }
 
     .chat-container {
@@ -67,11 +66,6 @@
       color: #64ffda;
     }
 
-    .input-row {
-      display: flex;
-      align-items: center;
-    }
-
     #input {
       width: 50%;
       padding: 10px;
@@ -97,22 +91,31 @@
       color: #000;
     }
 
-    #imageBtn, #voiceBtn {
-      width: 40px;
-      text-align: center;
-      padding: 0;
-      line-height: 36px;
-      font-weight: bold;
+    #sendBtn:hover {
+      background-color: #00b8d4;
     }
 
     #imageBtn {
       background-color: #00e5ff;
       color: #000;
+      font-weight: bold;
+      width: 40px;
+      text-align: center;
+      padding: 0;
+      line-height: 36px;
+    }
+
+    #imageBtn:hover {
+      background-color: #00b8d4;
     }
 
     #voiceBtn {
       background-color: #ff4081;
       color: #000;
+      width: 40px;
+      text-align: center;
+      padding: 0;
+      line-height: 36px;
     }
 
     #voiceBtn.recording {
@@ -122,6 +125,11 @@
 
     #emojiToggle {
       background-color: #ffd54f;
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
     }
 
     emoji-picker {
@@ -145,245 +153,245 @@
       outline: none;
     }
 
-    #kickoutPanel {
+    #kickoutList {
       position: absolute;
-      top: 50px;
       right: 20px;
-      background-color: #1e1e1e;
+      top: 80px;
+      background: #2c2c2c;
       border: 1px solid #444;
       padding: 10px;
-      border-radius: 6px;
       display: none;
-      z-index: 99;
+      z-index: 20;
+      border-radius: 6px;
     }
 
-    .kickable-user {
+    #kickoutList button {
+      display: block;
+      background: #d32f2f;
+      color: white;
+      border: none;
       padding: 5px;
-      margin: 3px 0;
-      background-color: #333;
+      margin: 5px 0;
       border-radius: 4px;
       cursor: pointer;
-    }
-
-    .kickable-user:hover {
-      background-color: #ff5252;
     }
   </style>
 </head>
 <body>
-
-<div class="sidebar">
-  <h3>Online</h3>
-  <div id="onlineUsers"></div>
-</div>
-
-<div class="chat-container">
-  <h2>...TECH SHARE with Reason's Website...</h2>
-  <div id="messages"></div>
-
-  <div class="input-row">
-    <input type="text" id="input" placeholder="Type your message..." autocomplete="off" />
-    <button id="sendBtn">Send</button>
-    <button id="imageBtn" title="Send Image">+</button>
-    <button id="voiceBtn" title="Record Voice Note">🎙️</button>
-    <button id="emojiToggle" title="Toggle Emoji Picker">😊</button>
-    <input type="file" id="imageInput" accept="image/*" style="display:none" />
-    <emoji-picker id="emojiPicker"></emoji-picker>
+  <div class="sidebar">
+    <h3>Online</h3>
+    <div id="onlineUsers"></div>
   </div>
 
-  <div id="kickoutPanel">
-    <strong>Click a user to kick:</strong>
-    <div id="kickList"></div>
+  <div class="chat-container">
+    <h2>...TECH SHARE with Reason's Website...</h2>
+    <div id="messages"></div>
+
+    <div class="input-row">
+      <input type="text" id="input" placeholder="Type your message..." autocomplete="off" />
+      <button id="sendBtn">Send</button>
+      <button id="imageBtn" title="Send Image">+</button>
+      <button id="voiceBtn" title="Record Voice Note">🎙️</button>
+      <button id="emojiToggle" title="Toggle Emoji Picker">😊</button>
+      <input type="file" id="imageInput" accept="image/*" style="display:none" />
+      <emoji-picker id="emojiPicker"></emoji-picker>
+    </div>
+    <div id="kickoutList"></div>
   </div>
-</div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-  import {
-    getDatabase,
-    ref,
-    push,
-    onChildAdded,
-    set,
-    onValue,
-    onDisconnect,
-    remove
-  } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import {
+      getDatabase,
+      ref,
+      push,
+      onChildAdded,
+      set,
+      onValue,
+      onDisconnect,
+      remove
+    } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyA5xlqQ16_QbiVonNj9oEDsr7Dk7NuvoB0",
-    authDomain: "gaming-80300.firebaseapp.com",
-    databaseURL: "https://gaming-80300-default-rtdb.firebaseio.com",
-    projectId: "gaming-80300",
-    storageBucket: "gaming-80300.appspot.com",
-    messagingSenderId: "480312736040",
-    appId: "1:480312736040:web:16156b60384ceb37c9f81d"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-
-  const username = prompt("Enter your name:") || "Anonymous";
-
-  const messagesRef = ref(db, 'messages');
-  const usersRef = ref(db, 'onlineUsers');
-  const myUserRef = ref(usersRef, username);
-  const kickedRef = ref(db, 'kicked');
-
-  set(myUserRef, true);
-  onDisconnect(myUserRef).remove();
-
-  const messagesDiv = document.getElementById('messages');
-  const input = document.getElementById('input');
-  const sendBtn = document.getElementById('sendBtn');
-  const imageBtn = document.getElementById('imageBtn');
-  const imageInput = document.getElementById('imageInput');
-  const voiceBtn = document.getElementById('voiceBtn');
-  const emojiToggle = document.getElementById('emojiToggle');
-  const emojiPicker = document.getElementById('emojiPicker');
-  const onlineUsersDiv = document.getElementById('onlineUsers');
-  const kickoutPanel = document.getElementById('kickoutPanel');
-  const kickList = document.getElementById('kickList');
-
-  const userColors = {};
-  const colors = ['#e91e63', '#03a9f4', '#4caf50', '#ff9800', '#9c27b0', '#00bcd4', '#8bc34a', '#ffc107', '#673ab7', '#2196f3', '#009688', '#ff5722'];
-
-  function getColorForUser(user) {
-    if (!userColors[user]) {
-      userColors[user] = colors[Object.keys(userColors).length % colors.length];
-    }
-    return userColors[user];
-  }
-
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  onChildAdded(messagesRef, (snapshot) => {
-    const msg = snapshot.val();
-    const msgDiv = document.createElement('div');
-    const userColor = getColorForUser(msg.username);
-    if (msg.imageUrl) {
-      msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br><a href="${msg.imageUrl}" target="_blank"><img src="${msg.imageUrl}" class="chat-image" /></a>`;
-    } else if (msg.audioBase64) {
-      msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br><audio class="chat-audio" controls src="data:audio/webm;base64,${msg.audioBase64}"></audio>`;
-    } else {
-      msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong> ${escapeHtml(msg.text)}`;
-    }
-    messagesDiv.appendChild(msgDiv);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-  });
-
-  sendBtn.onclick = () => {
-    const text = input.value.trim();
-    if (text) {
-      push(messagesRef, { text, username });
-      input.value = '';
-      input.focus();
-    }
-  };
-
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') sendBtn.click();
-  });
-
-  imageBtn.onclick = () => imageInput.click();
-
-  imageInput.onchange = () => {
-    const file = imageInput.files[0];
-    if (!file || !file.type.startsWith('image/')) return alert('Please select an image.');
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      push(messagesRef, { imageUrl: reader.result, username });
+    const firebaseConfig = {
+      apiKey: "AIzaSyA5xlqQ16_QbiVonNj9oEDsr7Dk7NuvoB0",
+      authDomain: "gaming-80300.firebaseapp.com",
+      databaseURL: "https://gaming-80300-default-rtdb.firebaseio.com",
+      projectId: "gaming-80300",
+      storageBucket: "gaming-80300.appspot.com",
+      messagingSenderId: "480312736040",
+      appId: "1:480312736040:web:16156b60384ceb37c9f81d"
     };
-    reader.readAsDataURL(file);
-  };
 
-  let mediaRecorder;
-  let audioChunks = [];
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-  voiceBtn.onclick = async () => {
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-      mediaRecorder.stop();
-      voiceBtn.textContent = "🎙️";
-      voiceBtn.classList.remove("recording");
-    } else {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-        mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-          audioChunks = [];
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64Audio = reader.result.split(',')[1];
-            push(messagesRef, { audioBase64: base64Audio, username });
-            stream.getTracks().forEach(track => track.stop());
+    const username = prompt("Enter your name:") || "Anonymous";
+
+    const messagesRef = ref(db, 'messages');
+    const usersRef = ref(db, 'onlineUsers');
+    const myUserRef = ref(db, 'onlineUsers/' + username);
+    const kickedFlagRef = ref(db, `kickedUsers/${username}`);
+
+    const messagesDiv = document.getElementById('messages');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('sendBtn');
+    const imageBtn = document.getElementById('imageBtn');
+    const imageInput = document.getElementById('imageInput');
+    const voiceBtn = document.getElementById('voiceBtn');
+    const emojiToggle = document.getElementById('emojiToggle');
+    const emojiPicker = document.getElementById('emojiPicker');
+    const onlineUsersDiv = document.getElementById('onlineUsers');
+    const kickoutList = document.getElementById('kickoutList');
+
+    set(myUserRef, true);
+    onDisconnect(myUserRef).remove();
+
+    onValue(usersRef, (snapshot) => {
+      const users = snapshot.val() || {};
+      onlineUsersDiv.innerHTML = '';
+      kickoutList.innerHTML = '';
+      Object.keys(users).forEach(user => {
+        const userDiv = document.createElement('div');
+        userDiv.className = 'user';
+        userDiv.textContent = user;
+        userDiv.style.color = getColorForUser(user);
+        onlineUsersDiv.appendChild(userDiv);
+
+        if (user !== username) {
+          const btn = document.createElement('button');
+          btn.textContent = `Kick ${user}`;
+          btn.onclick = () => {
+            const kickRef = ref(db, `kickedUsers/${user}`);
+            set(kickRef, true);
+            alert(`${user} has been kicked.`);
+            kickoutList.style.display = 'none';
           };
-          reader.readAsDataURL(audioBlob);
-        };
-        mediaRecorder.start();
-        voiceBtn.textContent = "■";
-        voiceBtn.classList.add("recording");
-      } catch (err) {
-        alert("Mic access denied: " + err.message);
+          kickoutList.appendChild(btn);
+        }
+      });
+    });
+
+    onValue(kickedFlagRef, (snapshot) => {
+      if (snapshot.exists()) {
+        window.location.href = "kicked out.html";
+        window.close();
       }
+    });
+
+    const userColors = {};
+    const colors = [
+      '#e91e63', '#03a9f4', '#4caf50', '#ff9800',
+      '#9c27b0', '#00bcd4', '#8bc34a', '#ffc107',
+      '#673ab7', '#2196f3', '#009688', '#ff5722',
+    ];
+
+    function getColorForUser(user) {
+      if (!userColors[user]) {
+        userColors[user] = colors[Object.keys(userColors).length % colors.length];
+      }
+      return userColors[user];
     }
-  };
 
-  emojiToggle.onclick = () => {
-    emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
-  };
-
-  emojiPicker.addEventListener('emoji-click', event => {
-    input.value += event.detail.unicode;
-    input.focus();
-  });
-
-  // Online Users
-  onValue(usersRef, (snapshot) => {
-    const users = snapshot.val() || {};
-    onlineUsersDiv.innerHTML = '';
-    kickList.innerHTML = '';
-    for (const user in users) {
+    function escapeHtml(text) {
       const div = document.createElement('div');
-      div.className = 'user';
-      div.textContent = user;
-      div.style.color = getColorForUser(user);
-      onlineUsersDiv.appendChild(div);
+      div.textContent = text;
+      return div.innerHTML;
+    }
 
-      if (user !== username) {
-        const kickDiv = document.createElement('div');
-        kickDiv.className = 'kickable-user';
-        kickDiv.textContent = user;
-        kickDiv.onclick = () => {
-          remove(ref(db, 'onlineUsers/' + user));
-          push(messagesRef, { text: `${user} has been kicked out.`, username: 'System' });
-          set(ref(db, 'kicked/' + user), true);
-          kickoutPanel.style.display = 'none';
-        };
-        kickList.appendChild(kickDiv);
+    onChildAdded(messagesRef, (snapshot) => {
+      const msg = snapshot.val();
+      const msgDiv = document.createElement('div');
+      const userColor = getColorForUser(msg.username);
+
+      if (msg.imageUrl) {
+        msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br><a href="${msg.imageUrl}" target="_blank"><img src="${msg.imageUrl}" class="chat-image" alt="User sent image" /></a>`;
+      } else if (msg.audioBase64) {
+        msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br><audio class="chat-audio" controls src="data:audio/webm;base64,${msg.audioBase64}"></audio>`;
+      } else {
+        msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong> ${escapeHtml(msg.text)}`;
       }
-    }
-  });
 
-  // Kickout Detection
-  onValue(ref(db, 'kicked/' + username), snapshot => {
-    if (snapshot.exists()) {
-      window.location.href = "kicked-out.html";
-    }
-  });
+      messagesDiv.appendChild(msgDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
 
-  // Shortcut Shift + Esc
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && e.shiftKey) {
-      kickoutPanel.style.display = kickoutPanel.style.display === 'none' ? 'block' : 'none';
-    }
-  });
-</script>
+    sendBtn.onclick = () => {
+      const text = input.value.trim();
+      if (text !== '') {
+        push(messagesRef, { text, username });
+        input.value = '';
+        input.focus();
+      }
+    };
 
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendBtn.click();
+    });
+
+    imageBtn.onclick = () => imageInput.click();
+
+    imageInput.onchange = () => {
+      const file = imageInput.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        push(messagesRef, { imageUrl: reader.result, username });
+        imageInput.value = '';
+      };
+      reader.readAsDataURL(file);
+    };
+
+    let mediaRecorder;
+    let audioChunks = [];
+
+    voiceBtn.onclick = async () => {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        voiceBtn.textContent = "🎙️";
+        voiceBtn.classList.remove("recording");
+      } else {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+          mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            audioChunks = [];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64Audio = reader.result.split(',')[1];
+              push(messagesRef, { audioBase64: base64Audio, username });
+              stream.getTracks().forEach(track => track.stop());
+            };
+            reader.readAsDataURL(audioBlob);
+          };
+          mediaRecorder.start();
+          voiceBtn.textContent = "■";
+          voiceBtn.classList.add("recording");
+        } catch (err) {
+          alert("Microphone access denied or error: " + err.message);
+        }
+      }
+    };
+
+    emojiToggle.onclick = () => {
+      emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
+    };
+
+    emojiPicker.addEventListener('emoji-click', event => {
+      input.value += event.detail.unicode;
+      input.focus();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.shiftKey && e.key.toLowerCase() === 'i') {
+        kickoutList.style.display = kickoutList.style.display === 'none' ? 'block' : 'none';
+      }
+    });
+  </script>
 </body>
 </html>
