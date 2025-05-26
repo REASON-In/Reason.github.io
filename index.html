@@ -31,6 +31,7 @@
     .user {
       margin: 5px 0;
       color: #80d8ff;
+      cursor: default;
     }
 
     .chat-container {
@@ -66,6 +67,11 @@
       color: #64ffda;
     }
 
+    .input-row {
+      display: flex;
+      align-items: center;
+    }
+
     #input {
       width: 50%;
       padding: 10px;
@@ -91,31 +97,22 @@
       color: #000;
     }
 
-    #sendBtn:hover {
-      background-color: #00b8d4;
+    #imageBtn, #voiceBtn {
+      width: 40px;
+      text-align: center;
+      padding: 0;
+      line-height: 36px;
+      font-weight: bold;
     }
 
     #imageBtn {
       background-color: #00e5ff;
       color: #000;
-      font-weight: bold;
-      width: 40px;
-      text-align: center;
-      padding: 0;
-      line-height: 36px;
-    }
-
-    #imageBtn:hover {
-      background-color: #00b8d4;
     }
 
     #voiceBtn {
       background-color: #ff4081;
       color: #000;
-      width: 40px;
-      text-align: center;
-      padding: 0;
-      line-height: 36px;
     }
 
     #voiceBtn.recording {
@@ -125,11 +122,6 @@
 
     #emojiToggle {
       background-color: #ffd54f;
-    }
-
-    .input-row {
-      display: flex;
-      align-items: center;
     }
 
     emoji-picker {
@@ -151,6 +143,30 @@
       max-width: 300px;
       border-radius: 6px;
       outline: none;
+    }
+
+    #kickoutPanel {
+      position: absolute;
+      top: 50px;
+      right: 20px;
+      background-color: #1e1e1e;
+      border: 1px solid #444;
+      padding: 10px;
+      border-radius: 6px;
+      display: none;
+      z-index: 99;
+    }
+
+    .kickable-user {
+      padding: 5px;
+      margin: 3px 0;
+      background-color: #333;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .kickable-user:hover {
+      background-color: #ff5252;
     }
   </style>
 </head>
@@ -174,6 +190,11 @@
     <input type="file" id="imageInput" accept="image/*" style="display:none" />
     <emoji-picker id="emojiPicker"></emoji-picker>
   </div>
+
+  <div id="kickoutPanel">
+    <strong>Click a user to kick:</strong>
+    <div id="kickList"></div>
+  </div>
 </div>
 
 <script type="module">
@@ -186,8 +207,7 @@
     set,
     onValue,
     onDisconnect,
-    remove,
-    get
+    remove
   } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
   const firebaseConfig = {
@@ -207,8 +227,11 @@
 
   const messagesRef = ref(db, 'messages');
   const usersRef = ref(db, 'onlineUsers');
-  const kickedRef = ref(db, 'kickedUsers');
   const myUserRef = ref(usersRef, username);
+  const kickedRef = ref(db, 'kicked');
+
+  set(myUserRef, true);
+  onDisconnect(myUserRef).remove();
 
   const messagesDiv = document.getElementById('messages');
   const input = document.getElementById('input');
@@ -219,33 +242,11 @@
   const emojiToggle = document.getElementById('emojiToggle');
   const emojiPicker = document.getElementById('emojiPicker');
   const onlineUsersDiv = document.getElementById('onlineUsers');
-
-  set(myUserRef, true);
-  onDisconnect(myUserRef).remove();
-
-  // Redirect if kicked
-  onValue(ref(db, 'kickedUsers/' + username), (snapshot) => {
-    if (snapshot.exists()) {
-      window.location.href = 'kicked out.html';
-      setTimeout(() => window.close(), 2000);
-    }
-  });
-
-  // Online users
-  onValue(usersRef, (snapshot) => {
-    const users = snapshot.val() || {};
-    onlineUsersDiv.innerHTML = '';
-    Object.keys(users).forEach(user => {
-      const userDiv = document.createElement('div');
-      userDiv.className = 'user';
-      userDiv.textContent = user;
-      userDiv.style.color = getColorForUser(user);
-      onlineUsersDiv.appendChild(userDiv);
-    });
-  });
+  const kickoutPanel = document.getElementById('kickoutPanel');
+  const kickList = document.getElementById('kickList');
 
   const userColors = {};
-  const colors = ['#e91e63','#03a9f4','#4caf50','#ff9800','#9c27b0','#00bcd4','#8bc34a','#ffc107','#673ab7','#2196f3','#009688','#ff5722'];
+  const colors = ['#e91e63', '#03a9f4', '#4caf50', '#ff9800', '#9c27b0', '#00bcd4', '#8bc34a', '#ffc107', '#673ab7', '#2196f3', '#009688', '#ff5722'];
 
   function getColorForUser(user) {
     if (!userColors[user]) {
@@ -263,8 +264,7 @@
   onChildAdded(messagesRef, (snapshot) => {
     const msg = snapshot.val();
     const msgDiv = document.createElement('div');
-    const userColor = getColorForUser(msg.username || 'System');
-
+    const userColor = getColorForUser(msg.username);
     if (msg.imageUrl) {
       msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br><a href="${msg.imageUrl}" target="_blank"><img src="${msg.imageUrl}" class="chat-image" /></a>`;
     } else if (msg.audioBase64) {
@@ -272,21 +272,20 @@
     } else {
       msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong> ${escapeHtml(msg.text)}`;
     }
-
     messagesDiv.appendChild(msgDiv);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 
   sendBtn.onclick = () => {
     const text = input.value.trim();
-    if (text !== '') {
+    if (text) {
       push(messagesRef, { text, username });
       input.value = '';
       input.focus();
     }
   };
 
-  input.addEventListener('keydown', (e) => {
+  input.addEventListener('keydown', e => {
     if (e.key === 'Enter') sendBtn.click();
   });
 
@@ -298,12 +297,12 @@
     const reader = new FileReader();
     reader.onloadend = () => {
       push(messagesRef, { imageUrl: reader.result, username });
-      imageInput.value = '';
     };
     reader.readAsDataURL(file);
   };
 
-  let mediaRecorder, audioChunks = [];
+  let mediaRecorder;
+  let audioChunks = [];
 
   voiceBtn.onclick = async () => {
     if (mediaRecorder && mediaRecorder.state === "recording") {
@@ -330,7 +329,7 @@
         voiceBtn.textContent = "■";
         voiceBtn.classList.add("recording");
       } catch (err) {
-        alert("Microphone access denied or error: " + err.message);
+        alert("Mic access denied: " + err.message);
       }
     }
   };
@@ -344,26 +343,44 @@
     input.focus();
   });
 
-  // Kickout toggle: Shift + Esc
-  let kickoutMode = false;
-  document.addEventListener('keydown', async (e) => {
-    if (e.key === 'Escape' && e.shiftKey) {
-      kickoutMode = !kickoutMode;
-      if (kickoutMode) {
-        const snap = await get(usersRef);
-        const users = snap.val();
-        const otherUsers = Object.keys(users).filter(u => u !== username);
-        const chosen = prompt(`Kickout Mode\nOnline Users:\n${otherUsers.join('\n')}\n\nEnter username to kick:`);
+  // Online Users
+  onValue(usersRef, (snapshot) => {
+    const users = snapshot.val() || {};
+    onlineUsersDiv.innerHTML = '';
+    kickList.innerHTML = '';
+    for (const user in users) {
+      const div = document.createElement('div');
+      div.className = 'user';
+      div.textContent = user;
+      div.style.color = getColorForUser(user);
+      onlineUsersDiv.appendChild(div);
 
-        if (chosen && chosen !== username && users[chosen]) {
-          await set(ref(db, 'kickedUsers/' + chosen), true);
-          await remove(ref(db, 'onlineUsers/' + chosen));
-          push(messagesRef, {
-            text: `${chosen} has been kicked out.`,
-            username: 'System'
-          });
-        }
+      if (user !== username) {
+        const kickDiv = document.createElement('div');
+        kickDiv.className = 'kickable-user';
+        kickDiv.textContent = user;
+        kickDiv.onclick = () => {
+          remove(ref(db, 'onlineUsers/' + user));
+          push(messagesRef, { text: `${user} has been kicked out.`, username: 'System' });
+          set(ref(db, 'kicked/' + user), true);
+          kickoutPanel.style.display = 'none';
+        };
+        kickList.appendChild(kickDiv);
       }
+    }
+  });
+
+  // Kickout Detection
+  onValue(ref(db, 'kicked/' + username), snapshot => {
+    if (snapshot.exists()) {
+      window.location.href = "kicked-out.html";
+    }
+  });
+
+  // Shortcut Shift + Esc
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && e.shiftKey) {
+      kickoutPanel.style.display = kickoutPanel.style.display === 'none' ? 'block' : 'none';
     }
   });
 </script>
