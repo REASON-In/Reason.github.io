@@ -14,7 +14,6 @@
       display: flex;
       height: 100vh;
       overflow: hidden;
-      flex-direction: column;
     }
 
     .sidebar {
@@ -22,11 +21,6 @@
       background-color: #1f1f1f;
       padding: 15px;
       box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
-      position: fixed;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      overflow-y: auto;
     }
 
     .sidebar h3 {
@@ -39,47 +33,17 @@
       color: #80d8ff;
     }
 
-    .main-container {
-      margin-left: 200px;
-      padding: 20px 30px 30px 30px;
+    .chat-container {
       flex: 1;
       display: flex;
       flex-direction: column;
-      height: 100vh;
-      box-sizing: border-box;
+      padding: 20px;
+      position: relative;
     }
 
     h2 {
       text-align: center;
       color: #00e5ff;
-      margin-bottom: 10px;
-    }
-
-    #onlineUsersContainer {
-      margin: 0 0 15px 0;
-      padding: 10px 15px;
-      background-color: #222;
-      border-radius: 10px;
-      color: #00e5ff;
-      font-size: 1em;
-      user-select: none;
-      max-height: 100px;
-      overflow-y: auto;
-    }
-
-    #onlineUsersContainer strong {
-      display: block;
-      margin-bottom: 5px;
-    }
-
-    #onlineUsersList {
-      list-style: none;
-      padding-left: 0;
-      margin: 0;
-    }
-
-    #onlineUsersList li {
-      margin: 3px 0;
     }
 
     #messages {
@@ -89,7 +53,6 @@
       overflow-y: auto;
       background: #212121;
       margin-bottom: 10px;
-      border-radius: 8px;
     }
 
     #messages div {
@@ -97,46 +60,35 @@
       background-color: #333;
       padding: 10px;
       border-radius: 6px;
-      word-wrap: break-word;
     }
 
     #messages strong {
       color: #64ffda;
     }
 
-    .input-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
     #input {
-      flex: 1;
+      width: 50%;
       padding: 10px;
-      font-size: 1.1em;
+      font-size: 1em;
       border: none;
       border-radius: 6px;
       background: #2c2c2c;
       color: white;
     }
 
-    button {
+    #sendBtn, #imageBtn, #voiceBtn, #emojiToggle {
       padding: 10px 15px;
       font-size: 1em;
       border: none;
       cursor: pointer;
       border-radius: 6px;
+      margin-left: 10px;
       user-select: none;
-      min-width: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
 
     #sendBtn {
       background-color: #00e5ff;
       color: #000;
-      min-width: 70px;
     }
 
     #sendBtn:hover {
@@ -148,6 +100,8 @@
       color: #000;
       font-weight: bold;
       width: 40px;
+      text-align: center;
+      padding: 0;
       line-height: 36px;
     }
 
@@ -159,6 +113,8 @@
       background-color: #ff4081;
       color: #000;
       width: 40px;
+      text-align: center;
+      padding: 0;
       line-height: 36px;
     }
 
@@ -169,8 +125,11 @@
 
     #emojiToggle {
       background-color: #ffd54f;
-      width: 40px;
-      line-height: 36px;
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
     }
 
     emoji-picker {
@@ -193,26 +152,39 @@
       border-radius: 6px;
       outline: none;
     }
+
+    #kickoutList {
+      position: absolute;
+      right: 20px;
+      top: 80px;
+      background: #2c2c2c;
+      border: 1px solid #444;
+      padding: 10px;
+      display: none;
+      z-index: 20;
+      border-radius: 6px;
+    }
+
+    #kickoutList button {
+      display: block;
+      background: #d32f2f;
+      color: white;
+      border: none;
+      padding: 5px;
+      margin: 5px 0;
+      border-radius: 4px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-
   <div class="sidebar">
     <h3>Online</h3>
     <div id="onlineUsers"></div>
   </div>
 
-  <div class="main-container">
+  <div class="chat-container">
     <h2>...TECH SHARE with Reason's Website...</h2>
-
-    <!-- Added Online Users Container Below Header -->
-    <div id="onlineUsersContainer">
-      <strong>Online Users:</strong>
-      <ul id="onlineUsersList">
-        <li>(Loading...)</li>
-      </ul>
-    </div>
-
     <div id="messages"></div>
 
     <div class="input-row">
@@ -224,244 +196,202 @@
       <input type="file" id="imageInput" accept="image/*" style="display:none" />
       <emoji-picker id="emojiPicker"></emoji-picker>
     </div>
+    <div id="kickoutList"></div>
   </div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-  import {
-    getDatabase,
-    ref,
-    push,
-    onChildAdded,
-    set,
-    onValue,
-    onDisconnect,
-    remove
-  } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import {
+      getDatabase,
+      ref,
+      push,
+      onChildAdded,
+      set,
+      onValue,
+      onDisconnect,
+      remove
+    } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyA5xlqQ16_QbiVonNj9oEDsr7Dk7NuvoB0",
-    authDomain: "gaming-80300.firebaseapp.com",
-    databaseURL: "https://gaming-80300-default-rtdb.firebaseio.com",
-    projectId: "gaming-80300",
-    storageBucket: "gaming-80300.appspot.com",
-    messagingSenderId: "480312736040",
-    appId: "1:480312736040:web:16156b60384ceb37c9f81d"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyA5xlqQ16_QbiVonNj9oEDsr7Dk7NuvoB0",
+      authDomain: "gaming-80300.firebaseapp.com",
+      databaseURL: "https://gaming-80300-default-rtdb.firebaseio.com",
+      projectId: "gaming-80300",
+      storageBucket: "gaming-80300.appspot.com",
+      messagingSenderId: "480312736040",
+      appId: "1:480312736040:web:16156b60384ceb37c9f81d"
+    };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-  const username = prompt("Enter your name:") || "Anonymous";
+    const username = prompt("Enter your name:") || "Anonymous";
 
-  const messagesRef = ref(db, 'messages');
-  const usersRef = ref(db, 'onlineUsers');
-  const myUserRef = ref(db, 'onlineUsers/' + username);
+    const messagesRef = ref(db, 'messages');
+    const usersRef = ref(db, 'onlineUsers');
+    const myUserRef = ref(db, 'onlineUsers/' + username);
+    const kickedFlagRef = ref(db, `kickedUsers/${username}`);
 
-  const messagesDiv = document.getElementById('messages');
-  const input = document.getElementById('input');
-  const sendBtn = document.getElementById('sendBtn');
-  const imageBtn = document.getElementById('imageBtn');
-  const imageInput = document.getElementById('imageInput');
-  const voiceBtn = document.getElementById('voiceBtn');
-  const emojiToggle = document.getElementById('emojiToggle');
-  const emojiPicker = document.getElementById('emojiPicker');
-  const onlineUsersDivSidebar = document.getElementById('onlineUsers');
-  const onlineUsersList = document.getElementById('onlineUsersList');
-  const onlineUsersContainer = document.getElementById('onlineUsersContainer');
+    const messagesDiv = document.getElementById('messages');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('sendBtn');
+    const imageBtn = document.getElementById('imageBtn');
+    const imageInput = document.getElementById('imageInput');
+    const voiceBtn = document.getElementById('voiceBtn');
+    const emojiToggle = document.getElementById('emojiToggle');
+    const emojiPicker = document.getElementById('emojiPicker');
+    const onlineUsersDiv = document.getElementById('onlineUsers');
+    const kickoutList = document.getElementById('kickoutList');
 
-  set(myUserRef, true);
-  onDisconnect(myUserRef).remove();
+    set(myUserRef, true);
+    onDisconnect(myUserRef).remove();
 
-  let otherUsers = [];
+    onValue(usersRef, (snapshot) => {
+      const users = snapshot.val() || {};
+      onlineUsersDiv.innerHTML = '';
+      kickoutList.innerHTML = '';
+      Object.keys(users).forEach(user => {
+        const userDiv = document.createElement('div');
+        userDiv.className = 'user';
+        userDiv.textContent = user;
+        userDiv.style.color = getColorForUser(user);
+        onlineUsersDiv.appendChild(userDiv);
 
-  // Update sidebar and online users list (below header)
-  onValue(usersRef, (snapshot) => {
-    const users = snapshot.val() || {};
-    onlineUsersDivSidebar.innerHTML = '';
-    otherUsers = [];
-
-    Object.keys(users).forEach(user => {
-      const userDiv = document.createElement('div');
-      userDiv.className = 'user';
-      userDiv.textContent = user;
-      userDiv.style.color = getColorForUser(user);
-      onlineUsersDivSidebar.appendChild(userDiv);
-
-      if (user !== username) otherUsers.push(user);
+        if (user !== username) {
+          const btn = document.createElement('button');
+          btn.textContent = `Kick ${user}`;
+          btn.onclick = () => {
+            const kickRef = ref(db, `kickedUsers/${user}`);
+            set(kickRef, true);
+            alert(`${user} has been kicked.`);
+            kickoutList.style.display = 'none';
+          };
+          kickoutList.appendChild(btn);
+        }
+      });
     });
 
-    updateOnlineUsersList();
-  });
+    onValue(kickedFlagRef, (snapshot) => {
+      if (snapshot.exists()) {
+        window.location.href = "kicked out.html";
+        window.close();
+      }
+    });
 
-  function updateOnlineUsersList() {
-    onlineUsersList.innerHTML = '';
-    if (otherUsers.length === 0) {
-      const li = document.createElement('li');
-      li.textContent = '(No other users online)';
-      onlineUsersList.appendChild(li);
-    } else {
-      otherUsers.forEach(user => {
-        const li = document.createElement('li');
-        li.textContent = user;
-        onlineUsersList.appendChild(li);
-      });
-    }
-  }
+    const userColors = {};
+    const colors = [
+      '#e91e63', '#03a9f4', '#4caf50', '#ff9800',
+      '#9c27b0', '#00bcd4', '#8bc34a', '#ffc107',
+      '#673ab7', '#2196f3', '#009688', '#ff5722',
+    ];
 
-  const userColors = {};
-  const colors = [
-    '#e91e63', '#03a9f4', '#4caf50', '#ff9800',
-    '#9c27b0', '#00bcd4', '#8bc34a', '#ffc107',
-    '#673ab7', '#2196f3', '#009688', '#ff5722',
-  ];
-
-  function getColorForUser(user) {
-    if (!userColors[user]) {
-      userColors[user] = colors[Object.keys(userColors).length % colors.length];
-    }
-    return userColors[user];
-  }
-
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  onChildAdded(messagesRef, (snapshot) => {
-    const msg = snapshot.val();
-    const msgDiv = document.createElement('div');
-    const userColor = getColorForUser(msg.username);
-
-    if (msg.imageUrl) {
-      msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br>
-        <a href="${msg.imageUrl}" target="_blank">
-          <img src="${msg.imageUrl}" class="chat-image" alt="User sent image" />
-        </a>`;
-    } else if (msg.audioBase64) {
-      msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br>
-        <audio class="chat-audio" controls src="data:audio/webm;base64,${msg.audioBase64}"></audio>`;
-    } else {
-      msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong> ${escapeHtml(msg.text)}`;
+    function getColorForUser(user) {
+      if (!userColors[user]) {
+        userColors[user] = colors[Object.keys(userColors).length % colors.length];
+      }
+      return userColors[user];
     }
 
-    messagesDiv.appendChild(msgDiv);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-  });
-
-  sendBtn.onclick = () => {
-    const text = input.value.trim();
-    if (text !== '') {
-      push(messagesRef, { text, username });
-      input.value = '';
-      input.focus();
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
-  };
 
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') sendBtn.click();
-  });
+    onChildAdded(messagesRef, (snapshot) => {
+      const msg = snapshot.val();
+      const msgDiv = document.createElement('div');
+      const userColor = getColorForUser(msg.username);
 
-  imageBtn.onclick = () => imageInput.click();
+      if (msg.imageUrl) {
+        msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br><a href="${msg.imageUrl}" target="_blank"><img src="${msg.imageUrl}" class="chat-image" alt="User sent image" /></a>`;
+      } else if (msg.audioBase64) {
+        msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong><br><audio class="chat-audio" controls src="data:audio/webm;base64,${msg.audioBase64}"></audio>`;
+      } else {
+        msgDiv.innerHTML = `<strong style="color:${userColor};">${escapeHtml(msg.username)}:</strong> ${escapeHtml(msg.text)}`;
+      }
 
-  imageInput.onchange = () => {
-    const file = imageInput.files[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      push(messagesRef, { imageUrl: reader.result, username });
-      imageInput.value = '';
+      messagesDiv.appendChild(msgDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
+
+    sendBtn.onclick = () => {
+      const text = input.value.trim();
+      if (text !== '') {
+        push(messagesRef, { text, username });
+        input.value = '';
+        input.focus();
+      }
     };
-    reader.readAsDataURL(file);
-  };
 
-  let mediaRecorder;
-  let audioChunks = [];
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendBtn.click();
+    });
 
-  voiceBtn.onclick = async () => {
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-      mediaRecorder.stop();
-      voiceBtn.textContent = "🎙️";
-      voiceBtn.classList.remove("recording");
-    } else {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert("Your browser does not support audio recording.");
+    imageBtn.onclick = () => imageInput.click();
+
+    imageInput.onchange = () => {
+      const file = imageInput.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file.');
         return;
       }
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-        mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-          audioChunks = [];
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64Audio = reader.result.split(',')[1];
-            push(messagesRef, { audioBase64: base64Audio, username });
-            stream.getTracks().forEach(track => track.stop());
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        push(messagesRef, { imageUrl: reader.result, username });
+        imageInput.value = '';
+      };
+      reader.readAsDataURL(file);
+    };
+
+    let mediaRecorder;
+    let audioChunks = [];
+
+    voiceBtn.onclick = async () => {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        voiceBtn.textContent = "🎙️";
+        voiceBtn.classList.remove("recording");
+      } else {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+          mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            audioChunks = [];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64Audio = reader.result.split(',')[1];
+              push(messagesRef, { audioBase64: base64Audio, username });
+              stream.getTracks().forEach(track => track.stop());
+            };
+            reader.readAsDataURL(audioBlob);
           };
-          reader.readAsDataURL(audioBlob);
-        };
-        mediaRecorder.start();
-        voiceBtn.textContent = "■";
-        voiceBtn.classList.add("recording");
-      } catch (err) {
-        alert("Microphone access denied or error: " + err.message);
+          mediaRecorder.start();
+          voiceBtn.textContent = "■";
+          voiceBtn.classList.add("recording");
+        } catch (err) {
+          alert("Microphone access denied or error: " + err.message);
+        }
       }
-    }
-  };
+    };
 
-  // Emoji picker
-  emojiToggle.onclick = () => {
-    emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
-  };
+    emojiToggle.onclick = () => {
+      emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
+    };
 
-  emojiPicker.addEventListener('emoji-click', event => {
-    input.value += event.detail.unicode;
-    input.focus();
-  });
+    emojiPicker.addEventListener('emoji-click', event => {
+      input.value += event.detail.unicode;
+      input.focus();
+    });
 
-  // --- Kickout feature, triggered with Shift+I ---
-  window.addEventListener('keydown', (e) => {
-    if (e.shiftKey && (e.key === 'I' || e.key === 'i')) {
-      e.preventDefault();
-      if (otherUsers.length === 0) {
-        alert("No other users to kick out.");
-        return;
+    document.addEventListener('keydown', (e) => {
+      if (e.shiftKey && e.key.toLowerCase() === 'i') {
+        kickoutList.style.display = kickoutList.style.display === 'none' ? 'block' : 'none';
       }
-      const userToKick = prompt("Online users:\n" + otherUsers.join('\n') + "\n\nType the username to kick out:");
-      if (!userToKick) return;
-
-      if (!otherUsers.includes(userToKick)) {
-        alert("User not found or not online.");
-        return;
-      }
-
-      // Kick out user: remove their online presence, and notify them by redirect
-      const kickedUserRef = ref(db, 'onlineUsers/' + userToKick);
-      remove(kickedUserRef).then(() => {
-        alert(`User "${userToKick}" has been kicked out.`);
-      }).catch(() => {
-        alert("Failed to kick out user.");
-      });
-    }
-  });
-
-  // Detect if this user has been kicked out (their online presence removed externally)
-  onValue(myUserRef, (snapshot) => {
-    if (!snapshot.exists()) {
-      alert("You have been kicked out.");
-      window.location.href = "kicked out.html";
-      window.close();
-    }
-  });
-</script>
-
+    });
+  </script>
 </body>
 </html>
